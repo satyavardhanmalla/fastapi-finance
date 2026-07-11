@@ -6,7 +6,6 @@ from dateutil import parser
 
 app = FastAPI()
 
-# Enable CORS for the grader
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,46 +20,39 @@ class InvoiceInput(BaseModel):
 async def extract_invoice(data: InvoiceInput):
     text = data.invoice_text
 
-    # 1. Extract Invoice No: Handles "Invoice No" or "Invoice #"
-    inv_match = re.search(r"Invoice\s*(?:No|#):?\s*(.*)", text, re.IGNORECASE)
+    # Search for keywords and capture everything that follows as a value
+    # This logic ignores what's before the keyword and looks for the nearest value
+    
+    # 1. Invoice Number: Look for keyword then alphanumeric code
+    inv_match = re.search(r"(?:invoice|#)\s*(?:no|num|number|#)?[:#]?\s*([a-z0-9-]+)", text, re.IGNORECASE)
     invoice_no = inv_match.group(1).strip() if inv_match else None
 
-    # 2. Extract Date: Handles flexible date formats
-    date_match = re.search(r"Date:?\s*(.*)", text, re.IGNORECASE)
+    # 2. Date: Look for date keyword then capture the rest of the line
+    date_match = re.search(r"(?:date|dated)[:\s]*([a-z0-9,\s]+)", text, re.IGNORECASE)
     formatted_date = None
     if date_match:
         try:
-            formatted_date = parser.parse(date_match.group(1)).strftime('%Y-%m-%d')
+            formatted_date = parser.parse(date_match.group(1).strip()).strftime('%Y-%m-%d')
         except:
             formatted_date = None
 
-    # 3. Extract Vendor: Handles "Vendor" or "Seller"
-    vendor_match = re.search(r"(?:Vendor|Seller):?\s*(.*)", text, re.IGNORECASE)
+    # 3. Vendor: Look for keyword then the name
+    vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*([a-z\s]+)", text, re.IGNORECASE)
     vendor = vendor_match.group(1).strip() if vendor_match else None
 
-    # 4. Extract Amount (Subtotal)
-    amount_match = re.search(r"Subtotal:?\s*(?:Rs\.?|USD\s*)?\s*([\d,]+\.\d+)", text, re.IGNORECASE)
+    # 4. Amount & 5. Tax: Look for keyword, then ignore potential currency labels, capture the number
+    # This pattern works by finding the keyword and taking the next numerical value it finds
+    amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
     amount = float(amount_match.group(1).replace(',', '')) if amount_match else 0.0
 
-    # 5. Extract Tax (Percentage and Amount)
-    # This captures the tax percentage (group 1) and the explicit tax amount (group 2)
-    tax_match = re.search(r"(?:GST|VAT)\s*\((\d+)%\):?\s*(?:Rs\.?|USD\s*)?\s*([\d,]+\.\d+)?", text, re.IGNORECASE)
-    
-    tax = None
-    if tax_match:
-        tax_percent = int(tax_match.group(1))
-        # If tax amount exists in text, use it; otherwise, calculate it from subtotal
-        if tax_match.group(2):
-            tax = float(tax_match.group(2).replace(',', ''))
-        else:
-            tax = round(amount * (tax_percent / 100), 2)
+    tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[\(\d%\)]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
+    tax = float(tax_match.group(1).replace(',', '')) if tax_match else 0.0
 
-    # Return the dictionary
     return {
         "invoice_no": invoice_no,
         "date": formatted_date,
         "vendor": vendor,
         "amount": amount,
         "tax": tax,
-        "currency": "INR" if "Rs" in text else ("USD" if "USD" in text else None)
+        "currency": "INR" if re.search(r"Rs|INR", text, re.IGNORECASE) else ("USD" if re.search(r"USD|\$", text, re.IGNORECASE) else None)
     }

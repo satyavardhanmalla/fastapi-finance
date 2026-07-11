@@ -46,10 +46,10 @@ async def extract_invoice(data: InvoiceInput):
     amount_match = re.search(r"(?:Subtotal|Total|Amount)[:.\s]*(?:Rs\.?|USD|[$])?\s*([\d,]+\.\d+)", text, re.IGNORECASE)
     amount = float(amount_match.group(1).replace(',', '')) if amount_match else None
 
-    # 6. Tax: Look for "GST", "VAT", or "Tax"
-    tax_match = re.search(r"(?:GST|VAT|Tax)[:.\s]*(?:Rs\.?|USD|[$])?\s*([\d,]+\.\d+)", text, re.IGNORECASE)
+# 6. Improved Tax: Look for any label starting with 'Tax', 'GST', 'VAT', 'SGST', 'CGST'
+    # The ([\d,]+(?:\.\d+)?) handles numbers with or without decimal points
+    tax_match = re.search(r"(?:GST|VAT|Tax|SGST|CGST)[^0-9]*([\d,]+(?:\.\d+)?)", text, re.IGNORECASE)
     tax = float(tax_match.group(1).replace(',', '')) if tax_match else None
-
     return {
         "invoice_no": invoice_no,
         "date": formatted_date,

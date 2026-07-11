@@ -20,14 +20,11 @@ class InvoiceInput(BaseModel):
 async def extract_invoice(data: InvoiceInput):
     text = data.invoice_text
 
-    # Search for keywords and capture everything that follows as a value
-    # This logic ignores what's before the keyword and looks for the nearest value
-    
-    # 1. Invoice Number: Look for keyword then alphanumeric code
+    # 1. Invoice Number
     inv_match = re.search(r"(?:invoice|#)\s*(?:no|num|number|#)?[:#]?\s*([a-z0-9-]+)", text, re.IGNORECASE)
     invoice_no = inv_match.group(1).strip() if inv_match else None
 
-    # 2. Date: Look for date keyword then capture the rest of the line
+    # 2. Date
     date_match = re.search(r"(?:date|dated)[:\s]*([a-z0-9,\s]+)", text, re.IGNORECASE)
     formatted_date = None
     if date_match:
@@ -36,17 +33,25 @@ async def extract_invoice(data: InvoiceInput):
         except:
             formatted_date = None
 
-    # 3. Vendor: Look for keyword then the name
+    # 3. Vendor
     vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*([a-z\s]+)", text, re.IGNORECASE)
     vendor = vendor_match.group(1).strip() if vendor_match else None
 
-    # 4. Amount & 5. Tax: Look for keyword, then ignore potential currency labels, capture the number
-    # This pattern works by finding the keyword and taking the next numerical value it finds
+    # 4. Amount
     amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
     amount = float(amount_match.group(1).replace(',', '')) if amount_match else 0.0
 
-    tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[\(\d%\)]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
-    tax = float(tax_match.group(1).replace(',', '')) if tax_match else 0.0
+    # 5. Tax Calculation Logic: 
+    # Capture percentage from (XX%) and calculate from amount
+    tax_percent_match = re.search(r"(?:gst|vat|tax)[\s\w]*\((\d+)%\)", text, re.IGNORECASE)
+    
+    if tax_percent_match:
+        percentage = float(tax_percent_match.group(1))
+        tax = round(amount * (percentage / 100), 2)
+    else:
+        # Fallback to direct extraction if no percentage is found
+        tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
+        tax = float(tax_match.group(1).replace(',', '')) if tax_match else None
 
     return {
         "invoice_no": invoice_no,

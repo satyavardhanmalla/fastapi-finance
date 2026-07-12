@@ -38,10 +38,10 @@ async def extract_invoice(data: InvoiceInput):
             formatted_date = parser.parse(clean_date).strftime('%Y-%m-%d')
         except:
             formatted_date = None
-    # 3. Vendor
-    vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*([a-z\s]+)", text, re.IGNORECASE)
+# 3. Extract Vendor: Stop capturing if it hits "Subtotal", "Total", or "Amount"
+    # The (?!...) part is a negative lookahead that stops the capture group
+    vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*(.*?)(?=\s*(?:subtotal|total|amount|invoice|date|$))", text, re.IGNORECASE | re.DOTALL)
     vendor = vendor_match.group(1).strip() if vendor_match else None
-
     # 4. Amount
     amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
     amount = float(amount_match.group(1).replace(',', '')) if amount_match else 0.0

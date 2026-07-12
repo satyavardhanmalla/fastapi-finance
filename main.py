@@ -51,21 +51,21 @@ async def extract_invoice(data: InvoiceInput):
         amount = float(amount_match.group(1).replace(',', ''))
     else:
         amount = None
-    # 5. Tax Calculation Logic: 
-    # Capture percentage from (XX%) and calculate from amount
+# 5. Extract Tax: Look for explicit amount or calculate from percentage
+    # First, look for an explicit tax amount line (e.g., GST: 500)
+    tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.?\d*)", text, re.IGNORECASE)
+    
+    # Second, look for a percentage (e.g., GST (10%):)
     tax_percent_match = re.search(r"(?:gst|vat|tax)[\s\w]*\((\d+)%\)", text, re.IGNORECASE)
     
-    if tax_percent_match:
+    tax = None
+    if tax_match:
+        # Extract the explicit tax value
+        tax = float(tax_match.group(1).replace(',', ''))
+    elif tax_percent_match and amount is not None:
+        # Fallback: Calculate tax from percentage and amount
         percentage = float(tax_percent_match.group(1))
-        if amount is not None:
-	    tax = round(amount * (percentage / 100), 2)
-	else:
-	    tax=None
-    else:
-        # Fallback to direct extraction if no percentage is found
-        tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
-        tax = float(tax_match.group(1).replace(',', '')) if tax_match else None
-
+        tax = round(amount * (percentage / 100), 2)
     return {
         "invoice_no": invoice_no,
         "date": formatted_date,

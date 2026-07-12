@@ -20,10 +20,10 @@ class InvoiceInput(BaseModel):
 async def extract_invoice(data: InvoiceInput):
     text = data.invoice_text
 
-    # 1. Invoice Number
-    inv_match = re.search(r"(?:invoice|#)\s*(?:no|num|number|#)?[:#]?\s*([a-z0-9-]+)", text, re.IGNORECASE)
+    # Use this pattern: Look specifically for the label, then capture the alphanumeric code
+    # This ignores the word "Invoice" if it is at the start of a line and not followed by a label
+    inv_match = re.search(r"(?:Invoice\s*(?:No|#)|#)\s*:?\s*([a-z0-9-]+)", text, re.IGNORECASE)
     invoice_no = inv_match.group(1).strip() if inv_match else None
-
     # 2. Date
     date_match = re.search(r"(?:date|dated)[:\s]*([a-z0-9,\s]+)", text, re.IGNORECASE)
     formatted_date = None

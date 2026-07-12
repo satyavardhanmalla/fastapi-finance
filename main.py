@@ -42,10 +42,15 @@ async def extract_invoice(data: InvoiceInput):
     # The (?!...) part is a negative lookahead that stops the capture group
     vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*(.*?)(?=\s*(?:subtotal|total|amount|invoice|date|$))", text, re.IGNORECASE | re.DOTALL)
     vendor = vendor_match.group(1).strip() if vendor_match else None
-    # 4. Amount
-    amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)
-    amount = float(amount_match.group(1).replace(',', '')) if amount_match else 0.0
-
+# 4. Extract Amount: Look for variations of total and capture the digits
+    # This pattern searches for "subtotal", "total", or "amount" and captures the following number
+    amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.?\d*)", text, re.IGNORECASE)
+    
+    if amount_match:
+        # Remove commas and convert to float
+        amount = float(amount_match.group(1).replace(',', ''))
+    else:
+        amount = None
     # 5. Tax Calculation Logic: 
     # Capture percentage from (XX%) and calculate from amount
     tax_percent_match = re.search(r"(?:gst|vat|tax)[\s\w]*\((\d+)%\)", text, re.IGNORECASE)

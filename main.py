@@ -24,15 +24,16 @@ async def extract_invoice(data: InvoiceInput):
     # This ignores the word "Invoice" if it is at the start of a line and not followed by a label
     inv_match = re.search(r"(?:Invoice\s*(?:No|#)|#)\s*:?\s*([a-z0-9-]+)", text, re.IGNORECASE)
     invoice_no = inv_match.group(1).strip() if inv_match else None
-    # 2. Date
-    date_match = re.search(r"(?:date|dated)[:\s]*([a-z0-9,\s]+)", text, re.IGNORECASE)
+# 2. Extract Date: Updated to include hyphens, slashes, and dots
+    date_match = re.search(r"(?:date|dated)[:\s]*([a-zA-Z0-9,\s\-\/\.]+)", text, re.IGNORECASE)
     formatted_date = None
     if date_match:
         try:
-            formatted_date = parser.parse(date_match.group(1).strip()).strftime('%Y-%m-%d')
+            # Strip trailing characters that might have been accidentally captured
+            date_str = date_match.group(1).strip()
+            formatted_date = parser.parse(date_str).strftime('%Y-%m-%d')
         except:
             formatted_date = None
-
     # 3. Vendor
     vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*([a-z\s]+)", text, re.IGNORECASE)
     vendor = vendor_match.group(1).strip() if vendor_match else None

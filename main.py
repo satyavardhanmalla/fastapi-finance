@@ -57,7 +57,10 @@ async def extract_invoice(data: InvoiceInput):
     
     if tax_percent_match:
         percentage = float(tax_percent_match.group(1))
-        tax = round(amount * (percentage / 100), 2)
+        if amount is not None:
+		tax = round(amount * (percentage / 100), 2)
+	else:
+		tax=None
     else:
         # Fallback to direct extraction if no percentage is found
         tax_match = re.search(r"(?:gst|vat|tax)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.\d+)", text, re.IGNORECASE)

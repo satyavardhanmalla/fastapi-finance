@@ -42,9 +42,9 @@ async def extract_invoice(data: InvoiceInput):
     # The (?!...) part is a negative lookahead that stops the capture group
     vendor_match = re.search(r"(?:vendor|seller|billed\s*by)[:\s]*(.*?)(?=\s*(?:subtotal|total|amount|invoice|date|$))", text, re.IGNORECASE | re.DOTALL)
     vendor = vendor_match.group(1).strip() if vendor_match else None
-# 4. Extract Amount: Look for variations of total and capture the digits
-    # This pattern searches for "subtotal", "total", or "amount" and captures the following number
-    amount_match = re.search(r"(?:subtotal|total|amount)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.?\d*)", text, re.IGNORECASE)
+# 4. Extract Amount: Specifically target 'Subtotal' or 'Total' and avoid 'Tax' or 'GST'
+    # The negative lookahead (?!.*(?:tax|gst|vat)) ensures we don't capture a line about tax
+    amount_match = re.search(r"(?:subtotal|total)[\s\w]*[:\s]*[\$Rs]*\s*([\d,]+\.?\d*)(?!.*(?:tax|gst|vat))", text, re.IGNORECASE)
     
     if amount_match:
         # Remove commas and convert to float
